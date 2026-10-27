@@ -1,160 +1,756 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>QR Coordinate Finder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RC Card Generator · GJ Format</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
-  body { margin:0; font-family: system-ui, sans-serif; background:#0a0a12; color:#e8e8f0; display:flex; height:100vh; }
-  #sidebar { width: 340px; padding: 20px; background:#151520; border-right:1px solid #2a2a3a; overflow-y:auto; }
-  #preview { flex:1; overflow:auto; padding:20px; display:flex; justify-content:center; align-items:flex-start; }
-  canvas { display:block; box-shadow: 0 20px 60px rgba(0,0,0,0.6); cursor: crosshair; }
-  h2 { margin-top:0; font-size:16px; }
-  .drop { border:2px dashed #444; padding:20px; text-align:center; border-radius:10px; cursor:pointer; margin-bottom:16px; }
-  .drop:hover { border-color:#00e0b8; }
-  .info { background:#0a0a12; padding:12px; border-radius:8px; font-family:monospace; font-size:12px; line-height:1.6; margin-bottom:12px; }
-  .info b { color:#00e0b8; }
-  .btn { width:100%; padding:10px; background:#00e0b8; color:#000; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:8px; }
-  .btn:hover { opacity:0.85; }
-  .btn.secondary { background:#2a2a3a; color:#e8e8f0; }
-  .corner { display:flex; justify-content:space-between; padding:4px 0; font-family:monospace; font-size:11px; }
-  .corner span:first-child { color:#7a7a92; }
-  .corner span:last-child { color:#00e0b8; }
+  :root {
+    --bg: #08080d;
+    --panel: rgba(18, 20, 30, 0.75);
+    --panel-2: rgba(28, 30, 44, 0.65);
+    --border: rgba(255, 255, 255, 0.07);
+    --border-strong: rgba(255, 255, 255, 0.15);
+    --text: #e8e8f0;
+    --muted: #7a7a92;
+    --accent: #00e0b8;
+    --accent-2: #7c5cff;
+    --danger: #ef4444;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    font-size: 13.5px;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(124, 92, 255, 0.15), transparent 45%),
+      radial-gradient(circle at 85% 100%, rgba(0, 224, 184, 0.12), transparent 45%);
+    pointer-events: none; z-index: 0;
+  }
+  .app {
+    position: relative;
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    height: 100vh;
+    z-index: 1;
+  }
+
+  /* LEFT PANEL */
+  .left-panel {
+    background: rgba(12, 13, 20, 0.88);
+    backdrop-filter: blur(24px);
+    border-right: 1px solid var(--border);
+    padding: 18px 18px;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .left-panel::-webkit-scrollbar { width: 6px; }
+  .left-panel::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .brand-logo {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center;
+    font-weight: 800; font-size: 18px; color: #000;
+    box-shadow: 0 6px 20px rgba(0, 224, 184, 0.28);
+  }
+  .brand h1 { font-size: 14.5px; font-weight: 700; letter-spacing: -0.02em; }
+  .brand p { font-size: 9.5px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+
+  .section { display: flex; flex-direction: column; gap: 8px; }
+  .section-title {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    letter-spacing: 0.1em; text-transform: uppercase;
+  }
+
+  textarea {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-family: var(--mono);
+    outline: none;
+    resize: vertical;
+    min-height: 220px;
+    line-height: 1.6;
+    transition: border 0.15s;
+  }
+  textarea:focus { border-color: var(--border-strong); }
+
+  .row-btns { display: flex; gap: 6px; }
+  .row-btns button {
+    flex: 1;
+    padding: 8px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 7px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .row-btns button:hover { border-color: var(--border-strong); background: rgba(40, 44, 60, 0.7); }
+
+  .btn {
+    width: 100%;
+    padding: 11px 14px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    font-size: 12.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn:hover:not(:disabled) { border-color: var(--border-strong); background: rgba(40, 44, 60, 0.7); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--accent), #00b393);
+    color: #001a15;
+    border: none;
+    box-shadow: 0 4px 16px rgba(0, 224, 184, 0.28);
+  }
+  .btn.primary:hover:not(:disabled) { box-shadow: 0 6px 22px rgba(0, 224, 184, 0.42); transform: translateY(-1px); }
+
+  .info-box {
+    background: rgba(0, 224, 184, 0.06);
+    border: 1px solid rgba(0, 224, 184, 0.2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 11px;
+    line-height: 1.6;
+    color: #5eead4;
+  }
+  .info-box b { color: var(--accent); }
+
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    border-radius: 9px;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .stat .k { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .stat .v { font-size: 15px; font-weight: 700; font-family: var(--mono); color: var(--accent); }
+
+  /* MAIN PREVIEW */
+  main { display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+  .toolbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    background: rgba(12, 13, 20, 0.6);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(16px);
+    font-size: 12px;
+  }
+  .toolbar .spacer { flex: 1; }
+  .tool-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .tool-btn:hover:not(:disabled) { border-color: var(--border-strong); }
+  .page-indicator { font-family: var(--mono); color: var(--muted); padding: 0 6px; }
+
+  .preview-pane {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    margin: 14px;
+    border-radius: 14px;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    min-height: 0;
+    position: relative;
+  }
+  .preview-pane::-webkit-scrollbar { width: 8px; height: 8px; }
+  .preview-pane::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+  .canvas-wrap {
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    height: fit-content;
+  }
+  #previewCanvas { display: block; border-radius: 4px; }
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 12px; color: var(--muted);
+    width: 100%;
+  }
+  .empty-state svg { width: 60px; height: 60px; opacity: 0.3; }
+  .empty-state h2 { font-size: 15px; color: var(--text); font-weight: 600; }
+  .empty-state p { font-size: 12px; max-width: 340px; text-align: center; line-height: 1.6; }
+
+  /* Loading */
+  .loading {
+    position: fixed; inset: 0;
+    background: rgba(8, 8, 13, 0.9);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 999;
+  }
+  .loading.show { display: flex; }
+  .loading-card {
+    background: rgba(20, 22, 34, 0.95);
+    border: 1px solid var(--border-strong);
+    padding: 28px 36px;
+    border-radius: 16px;
+    text-align: center;
+    min-width: 280px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    margin: 0 auto 14px;
+    border: 3px solid rgba(0, 224, 184, 0.15);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .loading-card p { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: rgba(20, 22, 34, 0.98);
+    border: 1px solid var(--border-strong);
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    transform: translateY(120%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+    max-width: 340px;
+  }
+  .toast.show { transform: translateY(0); }
+  .toast.ok { border-color: rgba(0, 224, 184, 0.4); color: #5eead4; }
+  .toast.err { border-color: rgba(239, 68, 68, 0.4); color: #fca5a5; }
+
+  @media (max-width: 1000px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .left-panel { max-height: 50vh; }
+  }
 </style>
 </head>
 <body>
-<div id="sidebar">
-  <h2>🎯 QR Coordinate Finder</h2>
-  <p style="color:#7a7a92;font-size:12px;margin-bottom:16px;">PDF upload kariye, phir QR ke <b>top-left</b> corner par click kariye, phir <b>bottom-right</b> corner par click kariye.</p>
-  
-  <div class="drop" onclick="document.getElementById('file').click()">
-    📄 Click to upload PDF
-    <input type="file" id="file" accept="application/pdf" style="display:none">
-  </div>
+<div class="app">
+  <!-- LEFT PANEL -->
+  <aside class="left-panel">
+    <div class="brand">
+      <div class="brand-logo">RC</div>
+      <div>
+        <h1>RC Card Generator</h1>
+        <p>GJ Format · Exact Fit</p>
+      </div>
+    </div>
 
-  <div class="info" id="info">
-    <div>Click 1 (top-left): <b id="c1">—</b></div>
-    <div>Click 2 (bottom-right): <b id="c2">—</b></div>
-    <hr style="border-color:#2a2a3a;margin:8px 0;">
-    <div class="corner"><span>QR X:</span><span id="qx">—</span></div>
-    <div class="corner"><span>QR Y:</span><span id="qy">—</span></div>
-    <div class="corner"><span>QR Width:</span><span id="qw">—</span></div>
-    <div class="corner"><span>QR Height:</span><span id="qh">—</span></div>
-  </div>
+    <div class="section">
+      <div class="section-title">1 · Paste Data JSON</div>
+      <textarea id="jsonInput" placeholder='Paste your JSON here...'></textarea>
+      <div class="row-btns">
+        <button id="loadSampleBtn">Load Sample</button>
+        <button id="clearBtn">Clear</button>
+      </div>
+    </div>
 
-  <button class="btn" onclick="reset()">🔄 Reset Points</button>
-  <button class="btn secondary" onclick="copyToClipboard()">📋 Copy QR Box</button>
+    <div class="section">
+      <div class="section-title">2 · Generate & Preview</div>
+      <button class="btn primary" id="generateBtn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Generate Card Preview
+      </button>
+      <button class="btn" id="downloadBtn" disabled>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Filled PDF
+      </button>
+    </div>
 
-  <div style="margin-top:20px;padding:12px;background:#0a2a1f;border-radius:8px;font-size:11px;color:#5eead4;">
-    <b>💡 Tip:</b> Zoom in (Ctrl + +) karke QR ke exact corners par click kariye. Coordinates PDF points me convert ho jayenge automatically.
+    <div class="section">
+      <div class="section-title">Analysis</div>
+      <div class="stats-grid">
+        <div class="stat"><span class="k">Fields Filled</span><span class="v" id="statFilled">—</span></div>
+        <div class="stat"><span class="k">QR Generated</span><span class="v" id="statQr">—</span></div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <b>ℹ Kaise use karein:</b><br>
+      1. JSON paste kariye (fixed schema)<br>
+      2. "Generate Card Preview" dabaiye<br>
+      3. Right side me card dikhega — verify kariye<br>
+      4. "Download Filled PDF" se final file lein<br><br>
+      Text kabhi bhi card boundary se bahar nahi jayega — auto shrink/wrap apply hota hai.
+    </div>
+  </aside>
+
+  <!-- MAIN PREVIEW -->
+  <main>
+    <div class="toolbar">
+      <span class="page-indicator">Preview</span>
+      <div class="spacer"></div>
+      <button class="tool-btn" id="zoomOut" disabled>−</button>
+      <span class="page-indicator" id="zoomLabel" style="min-width:52px;text-align:center">100%</span>
+      <button class="tool-btn" id="zoomIn" disabled>+</button>
+    </div>
+    <div class="preview-pane" id="previewPane">
+      <div class="empty-state" id="emptyState">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <h2>No card generated yet</h2>
+        <p>Paste your JSON on the left and click "Generate Card Preview" to see the RC card filled with your data.</p>
+      </div>
+      <div class="canvas-wrap" id="canvasWrap" style="display:none">
+        <canvas id="previewCanvas"></canvas>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="loading" id="loading">
+  <div class="loading-card">
+    <div class="spinner"></div>
+    <h3 id="loadingTitle">Processing…</h3>
+    <p id="loadingSub"></p>
   </div>
 </div>
-<div id="preview"></div>
+
+<div class="toast" id="toast"></div>
 
 <script>
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+/* ============================================================
+   SETUP
+============================================================ */
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-let pdfDoc = null, viewport = null, scale = 2, clicks = [];
+const $ = (id) => document.getElementById(id);
 
-document.getElementById('file').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const buf = await file.arrayBuffer();
-  pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
-  const page = await pdfDoc.getPage(1);
-  viewport = page.getViewport({ scale });
-  
-  const preview = document.getElementById('preview');
-  preview.innerHTML = '';
-  const canvas = document.createElement('canvas');
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
-  preview.appendChild(canvas);
-  await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-  
-  canvas.addEventListener('click', (ev) => {
-    const rect = canvas.getBoundingClientRect();
-    const px = (ev.clientX - rect.left) * (canvas.width / rect.width);
-    const py = (ev.clientY - rect.top) * (canvas.height / rect.height);
-    const pdfX = px / scale;
-    const pdfY = py / scale;
+/* ============================================================
+   TEMPLATE CONFIGURATION — Aapke PDF se exact coordinates
+============================================================ */
+
+// Blank PDF ka base64 (aap yahan apni blank PDF ka base64 paste karenge)
+// Abhi ke liye hum original PDF ki jagah placeholder use kar rahe hain
+// Aap isse replace karenge apni blank PDF se
+const BLANK_PDF_BASE64 = ''; // <-- Yahan blank PDF ka base64 paste kariye
+
+const PAGE_WIDTH = 612;
+const PAGE_HEIGHT = 792;
+
+// QR Bounding Box (aapne diya)
+const QR_BOX = { x: 300.80, y: 74.00, w: 71.50, h: 72.50 };
+
+// Har field ka coordinate map
+// align: 'left' | 'center' | 'right'
+// wrap: true matlab multi-line allowed
+// shrinkOnly: true matlab sirf font shrink karega, wrap nahi
+const COORD_MAP = {
+  stateName: {
+    x: 123.853, y: 44.560, maxW: 200, size: 6.4, align: 'left', shrinkOnly: true
+  },
+  badgeType_L: {
+    x: 246.750, y: 40.214, maxW: 7.532, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  stateCode_L: {
+    x: 259.463, y: 40.214, maxW: 7.538, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  badgeType_R: {
+    x: 304.311, y: 40.214, maxW: 7.532, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  stateCode_R: {
+    x: 317.024, y: 40.214, maxW: 7.538, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  vehicleClass: {
+    x: 388.694, y: 39.508, maxW: 92.294, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  regnNo_L: {
+    x: 108.315, y: 70.693, maxW: 38.442, size: 6.4, align: 'left', shrinkOnly: true
+  },
+  dateOfRegn: {
+    x: 152.812, y: 70.693, maxW: 35.951, size: 6.4, align: 'left', shrinkOnly: true
+  },
+  validity: {
+    x: 196.602, y: 70.693, maxW: 35.951, size: 6.4, align: 'left', shrinkOnly: true
+  },
+  ownerSerial: {
+    x: 265.467, y: 70.693, maxW: 3.561, size: 6.4, align: 'left', shrinkOnly: true
+  },
+  chassisNo: {
+    x: 108.315, y: 86.232, maxW: 69.046, size: 6.4, align: 'left', shrinkOnly: true
+  },
+  engineNo: {
+    x: 108.315, y: 103.183, maxW: 38.090, size: 6.4, align: 'left', shrinkOnly: true
+  },
+  ownerName: {
+    x: 108.315, y: 120.134, maxW: 24.194, size: 6.4, align: 'left', shrinkOnly: true
+  },
+  fatherName: {
+    x: 108.315, y: 137.086, maxW: 76.865, size: 6.4, align: 'left', shrinkOnly: true
+  },
+  fuel: {
+    x: 51.104, y: 127.904, maxW: 22.778, size: 6.4, align: 'left', shrinkOnly: true
+  },
+  emissionNorms: {
+    x: 49.692, y: 145.561, maxW: 57.295, size: 6.4, align: 'left', shrinkOnly: true
+  },
+  regnNo_R: {
+    x: 301.485, y: 64.228, maxW: 33.919, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  maker: {
+    x: 376.353, y: 64.228, maxW: 43.955, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  model: {
+    x: 376.353, y: 79.767, maxW: 87.604, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  color: {
+    x: 376.353, y: 96.012, maxW: 14.759, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  bodyType: {
+    x: 433.564, y: 96.012, maxW: 74.416, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  seating: {
+    x: 376.353, y: 110.138, maxW: 3.142, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  unladenWeight: {
+    x: 376.000, y: 125.350, maxW: 9.424, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  cubicCap: {
+    x: 376.353, y: 140.509, maxW: 9.425, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  horsePower: {
+    x: 409.550, y: 142.421, maxW: 20, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  wheelBase: {
+    x: 475.942, y: 140.509, maxW: 12.567, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  financier: {
+    x: 376.353, y: 156.754, maxW: 61.849, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  monthYearMfg: {
+    x: 301.485, y: 154.635, maxW: 20.421, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  cylinders: {
+    x: 346.689, y: 161.698, maxW: 3.142, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  regnAuthority: {
+    x: 475.000, y: 163.350, maxW: 40.816, size: 5.65, align: 'left', shrinkOnly: true
+  },
+  // Address — 3 lines, wrap + shrink
+  address: {
+    x: 108.315,
+    lines: [
+      { y: 151.779 },
+      { y: 159.540 },
+      { y: 167.302 }
+    ],
+    maxW: 157.277,
+    size: 6.4,
+    align: 'left',
+    wrap: true
+  }
+};
+
+/* ============================================================
+   STATE
+============================================================ */
+const state = {
+  pdfBytes: null,
+  pdfDoc: null,
+  measureFont: null,
+  generated: false,
+  zoom: 1.0,
+  lastData: null
+};
+
+/* ============================================================
+   TOAST
+============================================================ */
+let toastTimer = null;
+function toast(msg, type = 'ok') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+/* ============================================================
+   LOADING
+============================================================ */
+function showLoading(title, sub) {
+  $('loadingTitle').textContent = title || 'Processing…';
+  $('loadingSub').textContent = sub || '';
+  $('loading').classList.add('show');
+}
+function hideLoading() { $('loading').classList.remove('show'); }
+
+/* ============================================================
+   INIT: Load blank PDF + embed fonts
+============================================================ */
+async function init() {
+  try {
+    // Create pdf-lib doc for font measurement
+    const measureDoc = await PDFLib.PDFDocument.create();
+    state.measureFont = await measureDoc.embedFont(PDFLib.StandardFonts.Helvetica);
+
+    // Load blank PDF if base64 is provided
+    if (BLANK_PDF_BASE64) {
+      const bytes = Uint8Array.from(atob(BLANK_PDF_BASE64), c => c.charCodeAt(0));
+      state.pdfBytes = bytes;
+    } else {
+      // Agar blank PDF nahi hai to ek default white page banayenge
+      console.warn('BLANK_PDF_BASE64 is empty — using fallback blank page');
+      const doc = await PDFLib.PDFDocument.create();
+      const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+      const bytes = await doc.save();
+      state.pdfBytes = bytes;
+    }
+
+    // Load into pdf.js for preview
+    state.pdfDoc = await pdfjsLib.getDocument({ data: state.pdfBytes.slice(0) }).promise;
     
-    clicks.push({ x: pdfX, y: pdfY });
-    if (clicks.length > 2) clicks.shift();
-    updateInfo();
-    drawMarkers(canvas);
-  });
-  
-  reset();
-});
+    console.log('✅ Ready');
+  } catch (err) {
+    console.error('Init failed:', err);
+    toast('Init failed: ' + err.message, 'err');
+  }
+}
 
-function drawMarkers(canvas) {
-  const ctx = canvas.getContext('2d');
-  // redraw base
-  if (!pdfDoc) return;
-  pdfDoc.getPage(1).then(page => {
-    page.render({ canvasContext: ctx, viewport }).promise.then(() => {
-      clicks.forEach((c, i) => {
-        const cx = c.x * scale;
-        const cy = c.y * scale;
-        ctx.strokeStyle = i === 0 ? '#00e0b8' : '#ff3366';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = i === 0 ? '#00e0b8' : '#ff3366';
-        ctx.font = 'bold 14px sans-serif';
-        ctx.fillText(i === 0 ? '1' : '2', cx + 14, cy + 5);
-      });
-      if (clicks.length === 2) {
-        ctx.strokeStyle = 'rgba(0, 224, 184, 0.6)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([5, 5]);
-        ctx.strokeRect(
-          clicks[0].x * scale,
-          clicks[0].y * scale,
-          (clicks[1].x - clicks[0].x) * scale,
-          (clicks[1].y - clicks[0].y) * scale
-        );
+/* ============================================================
+   MEASURE TEXT WIDTH
+============================================================ */
+function measureWidth(text, size) {
+  if (!state.measureFont) return text.length * size * 0.5;
+  try {
+    return state.measureFont.widthOfTextAtSize(text, size);
+  } catch {
+    return text.length * size * 0.5;
+  }
+}
+
+/* ============================================================
+   FIT LOGIC
+============================================================ */
+// Single-line: shrink to fit
+function fitSingleLine(text, maxW, size) {
+  if (!text) return { text: '', size };
+  const width = measureWidth(text, size);
+  if (width <= maxW) return { text, size };
+  const scale = maxW / width;
+  const newSize = Math.max(size * scale, size * 0.4);
+  return { text, size: newSize };
+}
+
+// Multi-line wrap + shrink for address
+function fitMultiLine(text, maxW, size, maxLines) {
+  const originalSize = size;
+  let currentSize = size;
+
+  while (currentSize >= originalSize * 0.4) {
+    const lines = wrapToLines(text, maxW, currentSize);
+    if (lines.length <= maxLines) {
+      return { lines, size: currentSize };
+    }
+    currentSize = currentSize * 0.9;
+  }
+
+  // Fallback: shrink till it fits
+  currentSize = originalSize * 0.4;
+  const lines = wrapToLines(text, maxW, currentSize);
+  return { lines: lines.slice(0, maxLines), size: currentSize };
+}
+
+function wrapToLines(text, maxW, size) {
+  const words = String(text).split(/\s+/).filter(Boolean);
+  if (!words.length) return [''];
+  const lines = [];
+  let current = '';
+  for (const w of words) {
+    const test = current ? current + ' ' + w : w;
+    if (measureWidth(test, size) <= maxW) {
+      current = test;
+    } else {
+      if (current) lines.push(current);
+      current = w;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+/* ============================================================
+   GENERATE PDF
+============================================================ */
+async function generatePdf(data) {
+  const doc = await PDFLib.PDFDocument.load(state.pdfBytes);
+  const page = doc.getPages()[0];
+  const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+  const pageH = page.getHeight();
+
+  let filledCount = 0;
+
+  // Helper to draw text
+  const drawText = (text, x, y, size, maxW = null) => {
+    if (!text || String(text).trim() === '') return false;
+    const str = String(text);
+    let finalSize = size;
+    if (maxW !== null) {
+      const w = measureWidth(str, size);
+      if (w > maxW) {
+        finalSize = Math.max(size * (maxW / w), size * 0.4);
       }
+    }
+    try {
+      page.drawText(str, {
+        x,
+        y: pageH - y - font.ascentAtSize(finalSize) * 0.85,
+        size: finalSize,
+        font,
+        color: PDFLib.rgb(0, 0, 0)
+      });
+      filledCount++;
+      return true;
+    } catch (e) {
+      console.warn('Draw failed:', str, e);
+      return false;
+    }
+  };
+
+  // Draw all single-line fields
+  const singleFields = [
+    ['stateName', 'stateName'],
+    ['badgeType_L', 'badgeType'],
+    ['stateCode_L', 'stateCode'],
+    ['badgeType_R', 'badgeType'],
+    ['stateCode_R', 'stateCode'],
+    ['vehicleClass', 'vehicleClass'],
+    ['regnNo_L', 'regnNo'],
+    ['dateOfRegn', 'dateOfRegn'],
+    ['validity', 'validity'],
+    ['ownerSerial', 'ownerSerial'],
+    ['chassisNo', 'chassisNo'],
+    ['engineNo', 'engineNo'],
+    ['ownerName', 'ownerName'],
+    ['fatherName', 'fatherName'],
+    ['fuel', 'fuel'],
+    ['emissionNorms', 'emissionNorms'],
+    ['regnNo_R', 'regnNo'],
+    ['maker', 'maker'],
+    ['model', 'model'],
+    ['color', 'color'],
+    ['bodyType', 'bodyType'],
+    ['seating', 'seating'],
+    ['unladenWeight', 'unladenWeight'],
+    ['cubicCap', 'cubicCap'],
+    ['horsePower', 'horsePower'],
+    ['wheelBase', 'wheelBase'],
+    ['financier', 'financier'],
+    ['monthYearMfg', 'monthYearMfg'],
+    ['cylinders', 'cylinders'],
+    ['regnAuthority', 'regnAuthority']
+  ];
+
+  for (const [coordKey, dataKey] of singleFields) {
+    const c = COORD_MAP[coordKey];
+    const val = data[dataKey];
+    if (c && val) {
+      const { size: finalSize } = fitSingleLine(String(val), c.maxW, c.size);
+      drawText(String(val), c.x, c.y, c.size, c.maxW);
+    }
+  }
+
+  // Address — multi-line
+  const addrCoord = COORD_MAP.address;
+  if (data.address && addrCoord) {
+    const { lines, size } = fitMultiLine(
+      data.address, addrCoord.maxW, addrCoord.size, addrCoord.lines.length
+    );
+    lines.forEach((line, i) => {
+      if (i < addrCoord.lines.length && line) {
+        drawText(line, addrCoord.x, addrCoord.lines[i].y, size, null);
+      }
+    });
+  }
+
+  // QR Code
+  const qrText = [
+    data.regnNo || '',
+    data.chassisNo || '',
+    data.engineNo || '',
+    data.ownerName || ''
+  ].join('|');
+
+  if (qrText.trim().replace(/\|/g, '')) {
+    const qrDataUrl = await generateQrDataUrl(qrText);
+    if (qrDataUrl) {
+      const pngBytes = dataUrlToUint8(qrDataUrl);
+      const qrImage = await doc.embedPng(pngBytes);
+      // pdf-lib uses bottom-left origin
+      page.drawImage(qrImage, {
+        x: QR_BOX.x,
+        y: pageH - QR_BOX.y - QR_BOX.h,
+        width: QR_BOX.w,
+        height: QR_BOX.h
+      });
+    }
+  }
+
+  return { bytes: await doc.save(), filledCount, qrText };
+}
+
+/* ============================================================
+   QR GENERATION
+============================================================ */
+function generateQrDataUrl(text) {
+  return new Promise((resolve) => {
+    QRCode.toDataURL(text, {
+      errorCorrectionLevel: 'M',
+      margin: 0,
+      width: 512,
+      color: { dark: '#000000', light: '#FFFFFF' }
+    }, (err, url) => {
+      if (err) { console.error('QR failed:', err); resolve(null); }
+      else resolve(url);
     });
   });
 }
 
-function updateInfo() {
-  document.getElementById('c1').textContent = clicks[0] ? `(${clicks[0].x.toFixed(2)}, ${clicks[0].y.toFixed(2)})` : '—';
-  document.getElementById('c2').textContent = clicks[1] ? `(${clicks[1].x.toFixed(2)}, ${clicks[1].y.toFixed(2)})` : '—';
-  
-  if (clicks.length === 2) {
-    const x = Math.min(clicks[0].x, clicks[1].x);
-    const y = Math.min(clicks[0].y, clicks[1].y);
-    const w = Math.abs(clicks[1].x - clicks[0].x);
-    const h = Math.abs(clicks[1].y - clicks[0].y);
-    document.getElementById('qx').textContent = x.toFixed(2);
-    document.getElementById('qy').textContent = y.toFixed(2);
-    document.getElementById('qw').textContent = w.toFixed(2);
-    document.getElementById('qh').textContent = h.toFixed(2);
-  } else {
-    ['qx','qy','qw','qh'].forEach(id => document.getElementById(id).textContent = '—');
-  }
-}
-
-function reset() {
-  clicks = [];
-  updateInfo();
-  if (!pdfDoc) return;
-  const canvas = document.querySelector('#preview canvas');
-  if (canvas) {
-    const ctx = canvas.getContext('2d');
-    pdfDoc.getPage(1).then(page => page.render({ canvasContext: ctx, viewport }).promise);
-  }
-}
-
-function copyToClipboard() {
-  const text = `QR: { x: ${document.getElementById('qx').textContent}, y: ${document.getElementById('qy').textContent}, w: ${document.getElementById('qw').textContent}, h: ${document.getElementById('qh').textContent} }`;
-  navigator.clipboard.writeText(text);
-  alert('Copied!\n\n' + text);
-}
-</script>
-</body>
-</html>
+function dataUrlToUint8(dataUrl) {
+  const base64 = dataUrl.split(',')[1];
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) binary[i] = binary.charCodeAt(i);
+  return bytes
