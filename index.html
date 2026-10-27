@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>QR Coordinate Finder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  body { margin:0; font-family: system-ui, sans-serif; background:#0a0a12; color:#e8e8f0; display:flex; height:100vh; }
+  #sidebar { width: 340px; padding: 20px; background:#151520; border-right:1px solid #2a2a3a; overflow-y:auto; }
+  #preview { flex:1; overflow:auto; padding:20px; display:flex; justify-content:center; align-items:flex-start; }
+  canvas { display:block; box-shadow: 0 20px 60px rgba(0,0,0,0.6); cursor: crosshair; }
+  h2 { margin-top:0; font-size:16px; }
+  .drop { border:2px dashed #444; padding:20px; text-align:center; border-radius:10px; cursor:pointer; margin-bottom:16px; }
+  .drop:hover { border-color:#00e0b8; }
+  .info { background:#0a0a12; padding:12px; border-radius:8px; font-family:monospace; font-size:12px; line-height:1.6; margin-bottom:12px; }
+  .info b { color:#00e0b8; }
+  .btn { width:100%; padding:10px; background:#00e0b8; color:#000; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:8px; }
+  .btn:hover { opacity:0.85; }
+  .btn.secondary { background:#2a2a3a; color:#e8e8f0; }
+  .corner { display:flex; justify-content:space-between; padding:4px 0; font-family:monospace; font-size:11px; }
+  .corner span:first-child { color:#7a7a92; }
+  .corner span:last-child { color:#00e0b8; }
+</style>
+</head>
+<body>
+<div id="sidebar">
+  <h2>🎯 QR Coordinate Finder</h2>
+  <p style="color:#7a7a92;font-size:12px;margin-bottom:16px;">PDF upload kariye, phir QR ke <b>top-left</b> corner par click kariye, phir <b>bottom-right</b> corner par click kariye.</p>
+  
+  <div class="drop" onclick="document.getElementById('file').click()">
+    📄 Click to upload PDF
+    <input type="file" id="file" accept="application/pdf" style="display:none">
+  </div>
+
+  <div class="info" id="info">
+    <div>Click 1 (top-left): <b id="c1">—</b></div>
+    <div>Click 2 (bottom-right): <b id="c2">—</b></div>
+    <hr style="border-color:#2a2a3a;margin:8px 0;">
+    <div class="corner"><span>QR X:</span><span id="qx">—</span></div>
+    <div class="corner"><span>QR Y:</span><span id="qy">—</span></div>
+    <div class="corner"><span>QR Width:</span><span id="qw">—</span></div>
+    <div class="corner"><span>QR Height:</span><span id="qh">—</span></div>
+  </div>
+
+  <button class="btn" onclick="reset()">🔄 Reset Points</button>
+  <button class="btn secondary" onclick="copyToClipboard()">📋 Copy QR Box</button>
+
+  <div style="margin-top:20px;padding:12px;background:#0a2a1f;border-radius:8px;font-size:11px;color:#5eead4;">
+    <b>💡 Tip:</b> Zoom in (Ctrl + +) karke QR ke exact corners par click kariye. Coordinates PDF points me convert ho jayenge automatically.
+  </div>
+</div>
+<div id="preview"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+let pdfDoc = null, viewport = null, scale = 2, clicks = [];
+
+document.getElementById('file').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const buf = await file.arrayBuffer();
+  pdfDoc = await pdfjsLib.getDocument({ data: buf }).promise;
+  const page = await pdfDoc.getPage(1);
+  viewport = page.getViewport({ scale });
+  
+  const preview = document.getElementById('preview');
+  preview.innerHTML = '';
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  preview.appendChild(canvas);
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+  
+  canvas.addEventListener('click', (ev) => {
+    const rect = canvas.getBoundingClientRect();
+    const px = (ev.clientX - rect.left) * (canvas.width / rect.width);
+    const py = (ev.clientY - rect.top) * (canvas.height / rect.height);
+    const pdfX = px / scale;
+    const pdfY = py / scale;
+    
+    clicks.push({ x: pdfX, y: pdfY });
+    if (clicks.length > 2) clicks.shift();
+    updateInfo();
+    drawMarkers(canvas);
+  });
+  
+  reset();
+});
+
+function drawMarkers(canvas) {
+  const ctx = canvas.getContext('2d');
+  // redraw base
+  if (!pdfDoc) return;
+  pdfDoc.getPage(1).then(page => {
+    page.render({ canvasContext: ctx, viewport }).promise.then(() => {
+      clicks.forEach((c, i) => {
+        const cx = c.x * scale;
+        const cy = c.y * scale;
+        ctx.strokeStyle = i === 0 ? '#00e0b8' : '#ff3366';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = i === 0 ? '#00e0b8' : '#ff3366';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.fillText(i === 0 ? '1' : '2', cx + 14, cy + 5);
+      });
+      if (clicks.length === 2) {
+        ctx.strokeStyle = 'rgba(0, 224, 184, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(
+          clicks[0].x * scale,
+          clicks[0].y * scale,
+          (clicks[1].x - clicks[0].x) * scale,
+          (clicks[1].y - clicks[0].y) * scale
+        );
+      }
+    });
+  });
+}
+
+function updateInfo() {
+  document.getElementById('c1').textContent = clicks[0] ? `(${clicks[0].x.toFixed(2)}, ${clicks[0].y.toFixed(2)})` : '—';
+  document.getElementById('c2').textContent = clicks[1] ? `(${clicks[1].x.toFixed(2)}, ${clicks[1].y.toFixed(2)})` : '—';
+  
+  if (clicks.length === 2) {
+    const x = Math.min(clicks[0].x, clicks[1].x);
+    const y = Math.min(clicks[0].y, clicks[1].y);
+    const w = Math.abs(clicks[1].x - clicks[0].x);
+    const h = Math.abs(clicks[1].y - clicks[0].y);
+    document.getElementById('qx').textContent = x.toFixed(2);
+    document.getElementById('qy').textContent = y.toFixed(2);
+    document.getElementById('qw').textContent = w.toFixed(2);
+    document.getElementById('qh').textContent = h.toFixed(2);
+  } else {
+    ['qx','qy','qw','qh'].forEach(id => document.getElementById(id).textContent = '—');
+  }
+}
+
+function reset() {
+  clicks = [];
+  updateInfo();
+  if (!pdfDoc) return;
+  const canvas = document.querySelector('#preview canvas');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    pdfDoc.getPage(1).then(page => page.render({ canvasContext: ctx, viewport }).promise);
+  }
+}
+
+function copyToClipboard() {
+  const text = `QR: { x: ${document.getElementById('qx').textContent}, y: ${document.getElementById('qy').textContent}, w: ${document.getElementById('qw').textContent}, h: ${document.getElementById('qh').textContent} }`;
+  navigator.clipboard.writeText(text);
+  alert('Copied!\n\n' + text);
+}
+</script>
+</body>
+</html>
