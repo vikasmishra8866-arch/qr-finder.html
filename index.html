@@ -159,7 +159,6 @@
   }
   .btn.primary:hover:not(:disabled) { box-shadow: 0 6px 22px rgba(0, 224, 184, 0.42); transform: translateY(-1px); }
 
-  .stats-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
   .stat {
     background: var(--panel-2);
     border: 1px solid var(--border);
@@ -310,8 +309,8 @@
         </svg>
         <h3>Upload PDF</h3>
         <p>Click or drop here</p>
-        <input type="file" id="pdfInput" accept="application/pdf" style="display:none" />
       </div>
+      <input type="file" id="pdfInput" accept="application/pdf" style="display:none" />
       <div class="file-info" id="pdfInfo"></div>
     </div>
 
@@ -328,7 +327,7 @@
       <div class="section-title">3 · Generate</div>
       <button class="btn primary" id="generateBtn" disabled>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Generate & Preview
+        Generate &amp; Preview
       </button>
       <button class="btn" id="downloadBtn" disabled>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -338,9 +337,7 @@
 
     <div class="section">
       <div class="section-title">Status</div>
-      <div class="stats-grid">
-        <div class="stat"><span class="k">Fields Filled</span><span class="v" id="statFilled">—</span></div>
-      </div>
+      <div class="stat"><span class="k">Fields Filled</span><span class="v" id="statFilled">—</span></div>
     </div>
 
     <div class="info-box">
@@ -365,7 +362,7 @@
       <div class="empty-state" id="emptyState">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <h2>No PDF loaded</h2>
-        <p>Upload a blank PDF and paste JSON on the left, then click "Generate & Preview" to see the filled card here.</p>
+        <p>Upload a blank PDF and paste JSON on the left, then click "Generate &amp; Preview" to see the filled card here.</p>
       </div>
       <div class="canvas-wrap" id="canvasWrap" style="display:none">
         <canvas id="previewCanvas"></canvas>
@@ -391,54 +388,47 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 const $ = (id) => document.getElementById(id);
 
 /* ============================================================
-   TEMPLATE COORDINATES (aapke original PDF se)
-   QR completely skipped — usko hum touch nahi karenge.
+   COORDINATE MAP (QR ko chhod kar — QR touch nahi hoga)
 ============================================================ */
 const COORD_MAP = {
-  stateName:      { x: 123.853, y: 44.560,  maxW: 200,    size: 6.4,  shrink: true },
-  badgeType_L:    { x: 246.750, y: 40.214,  maxW: 7.532,  size: 5.65, shrink: true },
-  stateCode_L:    { x: 259.463, y: 40.214,  maxW: 7.538,  size: 5.65, shrink: true },
-  badgeType_R:    { x: 304.311, y: 40.214,  maxW: 7.532,  size: 5.65, shrink: true },
-  stateCode_R:    { x: 317.024, y: 40.214,  maxW: 7.538,  size: 5.65, shrink: true },
-  vehicleClass:   { x: 388.694, y: 39.508,  maxW: 92.294, size: 5.65, shrink: true },
-  regnNo_L:       { x: 108.315, y: 70.693,  maxW: 38.442, size: 6.4,  shrink: true },
-  dateOfRegn:     { x: 152.812, y: 70.693,  maxW: 35.951, size: 6.4,  shrink: true },
-  validity:       { x: 196.602, y: 70.693,  maxW: 35.951, size: 6.4,  shrink: true },
-  ownerSerial:    { x: 265.467, y: 70.693,  maxW: 3.561,  size: 6.4,  shrink: true },
-  chassisNo:      { x: 108.315, y: 86.232,  maxW: 69.046, size: 6.4,  shrink: true },
-  engineNo:       { x: 108.315, y: 103.183, maxW: 38.090, size: 6.4,  shrink: true },
-  ownerName:      { x: 108.315, y: 120.134, maxW: 24.194, size: 6.4,  shrink: true },
-  fatherName:     { x: 108.315, y: 137.086, maxW: 76.865, size: 6.4,  shrink: true },
-  fuel:           { x: 51.104,  y: 127.904, maxW: 22.778, size: 6.4,  shrink: true },
-  emissionNorms:  { x: 49.692,  y: 145.561, maxW: 57.295, size: 6.4,  shrink: true },
-  regnNo_R:       { x: 301.485, y: 64.228,  maxW: 33.919, size: 5.65, shrink: true },
-  maker:          { x: 376.353, y: 64.228,  maxW: 43.955, size: 5.65, shrink: true },
-  model:          { x: 376.353, y: 79.767,  maxW: 87.604, size: 5.65, shrink: true },
-  color:          { x: 376.353, y: 96.012,  maxW: 14.759, size: 5.65, shrink: true },
-  bodyType:       { x: 433.564, y: 96.012,  maxW: 74.416, size: 5.65, shrink: true },
-  seating:        { x: 376.353, y: 110.138, maxW: 3.142,  size: 5.65, shrink: true },
-  unladenWeight:  { x: 376.000, y: 125.350, maxW: 9.424,  size: 5.65, shrink: true },
-  cubicCap:       { x: 376.353, y: 140.509, maxW: 9.425,  size: 5.65, shrink: true },
-  horsePower:     { x: 409.550, y: 142.421, maxW: 20,     size: 5.65, shrink: true },
-  wheelBase:      { x: 475.942, y: 140.509, maxW: 12.567, size: 5.65, shrink: true },
-  financier:      { x: 376.353, y: 156.754, maxW: 61.849, size: 5.65, shrink: true },
-  monthYearMfg:   { x: 301.485, y: 154.635, maxW: 20.421, size: 5.65, shrink: true },
-  cylinders:      { x: 346.689, y: 161.698, maxW: 3.142,  size: 5.65, shrink: true },
-  regnAuthority:  { x: 475.000, y: 163.350, maxW: 40.816, size: 5.65, shrink: true },
+  stateName:      { x: 123.853, y: 44.560,  maxW: 200,    size: 6.4 },
+  badgeType_L:    { x: 246.750, y: 40.214,  maxW: 7.532,  size: 5.65 },
+  stateCode_L:    { x: 259.463, y: 40.214,  maxW: 7.538,  size: 5.65 },
+  badgeType_R:    { x: 304.311, y: 40.214,  maxW: 7.532,  size: 5.65 },
+  stateCode_R:    { x: 317.024, y: 40.214,  maxW: 7.538,  size: 5.65 },
+  vehicleClass:   { x: 388.694, y: 39.508,  maxW: 92.294, size: 5.65 },
+  regnNo_L:       { x: 108.315, y: 70.693,  maxW: 38.442, size: 6.4 },
+  dateOfRegn:     { x: 152.812, y: 70.693,  maxW: 35.951, size: 6.4 },
+  validity:       { x: 196.602, y: 70.693,  maxW: 35.951, size: 6.4 },
+  ownerSerial:    { x: 265.467, y: 70.693,  maxW: 3.561,  size: 6.4 },
+  chassisNo:      { x: 108.315, y: 86.232,  maxW: 69.046, size: 6.4 },
+  engineNo:       { x: 108.315, y: 103.183, maxW: 38.090, size: 6.4 },
+  ownerName:      { x: 108.315, y: 120.134, maxW: 24.194, size: 6.4 },
+  fatherName:     { x: 108.315, y: 137.086, maxW: 76.865, size: 6.4 },
+  fuel:           { x: 51.104,  y: 127.904, maxW: 22.778, size: 6.4 },
+  emissionNorms:  { x: 49.692,  y: 145.561, maxW: 57.295, size: 6.4 },
+  regnNo_R:       { x: 301.485, y: 64.228,  maxW: 33.919, size: 5.65 },
+  maker:          { x: 376.353, y: 64.228,  maxW: 43.955, size: 5.65 },
+  model:          { x: 376.353, y: 79.767,  maxW: 87.604, size: 5.65 },
+  color:          { x: 376.353, y: 96.012,  maxW: 14.759, size: 5.65 },
+  bodyType:       { x: 433.564, y: 96.012,  maxW: 74.416, size: 5.65 },
+  seating:        { x: 376.353, y: 110.138, maxW: 3.142,  size: 5.65 },
+  unladenWeight:  { x: 376.000, y: 125.350, maxW: 9.424,  size: 5.65 },
+  cubicCap:       { x: 376.353, y: 140.509, maxW: 9.425,  size: 5.65 },
+  horsePower:     { x: 409.550, y: 142.421, maxW: 20,     size: 5.65 },
+  wheelBase:      { x: 475.942, y: 140.509, maxW: 12.567, size: 5.65 },
+  financier:      { x: 376.353, y: 156.754, maxW: 61.849, size: 5.65 },
+  monthYearMfg:   { x: 301.485, y: 154.635, maxW: 20.421, size: 5.65 },
+  cylinders:      { x: 346.689, y: 161.698, maxW: 3.142,  size: 5.65 },
+  regnAuthority:  { x: 475.000, y: 163.350, maxW: 40.816, size: 5.65 },
   address: {
     x: 108.315,
-    lines: [
-      { y: 151.779 },
-      { y: 159.540 },
-      { y: 167.302 }
-    ],
+    lines: [ { y: 151.779 }, { y: 159.540 }, { y: 167.302 } ],
     maxW: 157.277,
-    size: 6.4,
-    wrap: true
+    size: 6.4
   }
 };
 
-// JSON key -> COORD_MAP key mapping
 const FIELD_MAP = [
   ['stateName',     'stateName'],
   ['badgeType',     'badgeType_L'],
@@ -510,12 +500,11 @@ const state = {
   pdfBytes: null,
   pdfDoc: null,
   measureFont: null,
-  zoom: 1.0,
-  lastResult: null
+  zoom: 1.0
 };
 
 /* ============================================================
-   INIT MEASURE FONT
+   INIT
 ============================================================ */
 (async function initMeasureFont() {
   try {
@@ -545,24 +534,41 @@ function showLoading(title, sub) {
 function hideLoading() { $('loading').classList.remove('show'); }
 
 /* ============================================================
-   PDF UPLOAD
+   PDF UPLOAD — FIXED
 ============================================================ */
 const pdfDrop = $('pdfDrop');
 const pdfInput = $('pdfInput');
 
-pdfDrop.addEventListener('click', () => pdfInput.click());
+// Click anywhere on drop zone opens file picker
+pdfDrop.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  pdfInput.click();
+});
+
+// Drag & drop
 pdfDrop.addEventListener('dragover', (e) => {
-  e.preventDefault(); pdfDrop.classList.add('drag');
+  e.preventDefault();
+  e.stopPropagation();
+  pdfDrop.classList.add('drag');
 });
-pdfDrop.addEventListener('dragleave', () => pdfDrop.classList.remove('drag'));
+pdfDrop.addEventListener('dragleave', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  pdfDrop.classList.remove('drag');
+});
 pdfDrop.addEventListener('drop', (e) => {
-  e.preventDefault(); pdfDrop.classList.remove('drag');
-  const f = e.dataTransfer.files[0];
+  e.preventDefault();
+  e.stopPropagation();
+  pdfDrop.classList.remove('drag');
+  const f = e.dataTransfer.files && e.dataTransfer.files[0];
   if (f && f.type === 'application/pdf') loadPdf(f);
-  else toast('PDF required', 'err');
+  else toast('PDF file required', 'err');
 });
+
+// File input change
 pdfInput.addEventListener('change', (e) => {
-  const f = e.target.files[0];
+  const f = e.target.files && e.target.files[0];
   if (f) loadPdf(f);
 });
 
@@ -578,9 +584,10 @@ async function loadPdf(file) {
     $('zoomIn').disabled = false;
     $('zoomOut').disabled = false;
 
-    await renderPreview(state.pdfBytes);
+    // Show original PDF in preview (without filled text initially)
+    await renderPdfToCanvas(state.pdfBytes);
     hideLoading();
-    toast('PDF loaded', 'ok');
+    toast('PDF loaded successfully', 'ok');
   } catch (err) {
     console.error(err);
     hideLoading();
@@ -589,7 +596,50 @@ async function loadPdf(file) {
 }
 
 /* ============================================================
-   JSON SAMPLES
+   RENDER PDF TO CANVAS
+============================================================ */
+const previewCanvas = $('previewCanvas');
+const canvasWrap = $('canvasWrap');
+const emptyState = $('emptyState');
+const previewPane = $('previewPane');
+
+async function renderPdfToCanvas(bytes) {
+  const doc = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
+  const page = await doc.getPage(1);
+  const baseViewport = page.getViewport({ scale: 1 });
+  // Fit to pane width
+  const paneWidth = previewPane.clientWidth - 40;
+  const fitScale = Math.min(2.5, paneWidth / baseViewport.width);
+  const finalScale = fitScale * state.zoom;
+  const viewport = page.getViewport({ scale: finalScale });
+
+  previewCanvas.width = Math.floor(viewport.width);
+  previewCanvas.height = Math.floor(viewport.height);
+  const ctx = previewCanvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+  await page.render({ canvasContext: ctx, viewport }).promise;
+
+  canvasWrap.style.display = 'block';
+  emptyState.style.display = 'none';
+  $('zoomLabel').textContent = Math.round(state.zoom * 100) + '%';
+}
+
+/* ============================================================
+   ZOOM
+============================================================ */
+$('zoomIn').addEventListener('click', async () => {
+  state.zoom = Math.min(state.zoom * 1.25, 3);
+  if (state.pdfBytes) await renderPdfToCanvas(state.pdfBytes);
+});
+$('zoomOut').addEventListener('click', async () => {
+  state.zoom = Math.max(state.zoom / 1.25, 0.4);
+  if (state.pdfBytes) await renderPdfToCanvas(state.pdfBytes);
+});
+
+/* ============================================================
+   SAMPLE / CLEAR
 ============================================================ */
 $('loadSampleBtn').addEventListener('click', () => {
   $('jsonInput').value = JSON.stringify(SAMPLE_JSON, null, 2);
@@ -600,26 +650,21 @@ $('clearBtn').addEventListener('click', () => {
 });
 
 /* ============================================================
-   MEASURE TEXT WIDTH
+   MEASURE TEXT
 ============================================================ */
 function measureWidth(text, size) {
   if (!state.measureFont) return text.length * size * 0.5;
   try {
-    return state.measureFont.widthOfTextAtSize(text, size);
+    return state.measureFont.widthOfTextAtSize(String(text), size);
   } catch {
     return text.length * size * 0.5;
   }
 }
 
-/* ============================================================
-   FIT LOGIC
-============================================================ */
 function fitSingleLine(text, maxW, size) {
-  if (!text) return { text: '', size };
   const w = measureWidth(text, size);
   if (w <= maxW) return { text, size };
-  const newSize = Math.max(size * (maxW / w), size * 0.4);
-  return { text, size: newSize };
+  return { text, size: Math.max(size * (maxW / w), size * 0.4) };
 }
 
 function wrapToLines(text, maxW, size) {
@@ -648,38 +693,4 @@ function fitMultiLine(text, maxW, size, maxLines) {
     s *= 0.9;
   }
   const lines = wrapToLines(text, maxW, orig * 0.4);
-  return { lines: lines.slice(0, maxLines), size: orig * 0.4 };
-}
-
-/* ============================================================
-   GENERATE FILLED PDF
-============================================================ */
-async function generateFilledPdf() {
-  const raw = $('jsonInput').value.trim();
-  if (!raw) { toast('JSON paste kariye', 'err'); return; }
-  if (!state.pdfBytes) { toast('Pehle PDF upload kariye', 'err'); return; }
-
-  let data;
-  try {
-    data = JSON.parse(raw);
-  } catch (e) {
-    toast('JSON parse error: ' + e.message, 'err');
-    return;
-  }
-
-  showLoading('Generating PDF…', 'Drawing text at exact coordinates');
-  try {
-    const doc = await PDFLib.PDFDocument.load(state.pdfBytes);
-    const page = doc.getPages()[0];
-    const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
-    const pageH = page.getHeight();
-
-    let filled = 0;
-
-    const drawText = (text, x, y, size, maxW) => {
-      if (!text || String(text).trim() === '') return;
-      const str = String(text);
-      let finalSize = size;
-      if (maxW !== null && maxW > 0) {
-        const w = measureWidth(str, size);
-        if (w > maxW) finalSize =
+  return { lines: lines.slice(0, maxLines), size:
