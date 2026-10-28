@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RC Card Generator · GJ Format</title>
+<title>RC Card Generator</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
   :root {
     --bg: #08080d;
@@ -19,7 +18,6 @@
     --muted: #7a7a92;
     --accent: #00e0b8;
     --accent-2: #7c5cff;
-    --danger: #ef4444;
     --mono: 'JetBrains Mono', ui-monospace, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -42,17 +40,16 @@
   .app {
     position: relative;
     display: grid;
-    grid-template-columns: 420px 1fr;
+    grid-template-columns: 400px 1fr;
     height: 100vh;
     z-index: 1;
   }
 
-  /* LEFT PANEL */
   .left-panel {
     background: rgba(12, 13, 20, 0.88);
     backdrop-filter: blur(24px);
     border-right: 1px solid var(--border);
-    padding: 18px 18px;
+    padding: 18px;
     overflow-y: auto;
     display: flex; flex-direction: column; gap: 16px;
   }
@@ -64,7 +61,7 @@
     width: 38px; height: 38px; border-radius: 10px;
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     display: grid; place-items: center;
-    font-weight: 800; font-size: 18px; color: #000;
+    font-weight: 800; font-size: 16px; color: #000;
     box-shadow: 0 6px 20px rgba(0, 224, 184, 0.28);
   }
   .brand h1 { font-size: 14.5px; font-weight: 700; letter-spacing: -0.02em; }
@@ -75,6 +72,35 @@
     font-size: 10px; font-weight: 700; color: var(--muted);
     letter-spacing: 0.1em; text-transform: uppercase;
   }
+
+  .drop-zone {
+    border: 2px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 20px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: rgba(255, 255, 255, 0.015);
+  }
+  .drop-zone:hover, .drop-zone.drag {
+    border-color: var(--accent);
+    background: rgba(0, 224, 184, 0.06);
+  }
+  .drop-zone svg { width: 26px; height: 26px; color: var(--accent); margin-bottom: 6px; }
+  .drop-zone h3 { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+  .drop-zone p { font-size: 10.5px; color: var(--muted); }
+  .file-info {
+    display: none;
+    font-size: 10.5px;
+    background: rgba(0, 224, 184, 0.08);
+    border: 1px solid rgba(0, 224, 184, 0.25);
+    padding: 7px 9px;
+    border-radius: 7px;
+    color: var(--accent);
+    font-family: var(--mono);
+    word-break: break-all;
+  }
+  .file-info.show { display: block; }
 
   textarea {
     width: 100%;
@@ -87,7 +113,7 @@
     font-family: var(--mono);
     outline: none;
     resize: vertical;
-    min-height: 220px;
+    min-height: 240px;
     line-height: 1.6;
     transition: border 0.15s;
   }
@@ -133,29 +159,28 @@
   }
   .btn.primary:hover:not(:disabled) { box-shadow: 0 6px 22px rgba(0, 224, 184, 0.42); transform: translateY(-1px); }
 
-  .info-box {
-    background: rgba(0, 224, 184, 0.06);
-    border: 1px solid rgba(0, 224, 184, 0.2);
-    border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 11px;
-    line-height: 1.6;
-    color: #5eead4;
-  }
-  .info-box b { color: var(--accent); }
-
-  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stats-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
   .stat {
     background: var(--panel-2);
     border: 1px solid var(--border);
     padding: 10px 12px;
     border-radius: 9px;
-    display: flex; flex-direction: column; gap: 2px;
+    display: flex; align-items: center; justify-content: space-between;
   }
-  .stat .k { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
-  .stat .v { font-size: 15px; font-weight: 700; font-family: var(--mono); color: var(--accent); }
+  .stat .k { font-size: 11px; color: var(--muted); font-weight: 600; }
+  .stat .v { font-size: 14px; font-weight: 700; font-family: var(--mono); color: var(--accent); }
 
-  /* MAIN PREVIEW */
+  .info-box {
+    background: rgba(0, 224, 184, 0.06);
+    border: 1px solid rgba(0, 224, 184, 0.2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 10.5px;
+    line-height: 1.65;
+    color: #5eead4;
+  }
+  .info-box b { color: var(--accent); }
+
   main { display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
   .toolbar {
     display: flex; align-items: center; gap: 10px;
@@ -178,6 +203,7 @@
     transition: all 0.15s;
   }
   .tool-btn:hover:not(:disabled) { border-color: var(--border-strong); }
+  .tool-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .page-indicator { font-family: var(--mono); color: var(--muted); padding: 0 6px; }
 
   .preview-pane {
@@ -210,7 +236,6 @@
   .empty-state h2 { font-size: 15px; color: var(--text); font-weight: 600; }
   .empty-state p { font-size: 12px; max-width: 340px; text-align: center; line-height: 1.6; }
 
-  /* Loading */
   .loading {
     position: fixed; inset: 0;
     background: rgba(8, 8, 13, 0.9);
@@ -241,7 +266,6 @@
   .loading-card h3 { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
   .loading-card p { font-size: 11px; color: var(--muted); font-family: var(--mono); }
 
-  /* Toast */
   .toast {
     position: fixed;
     bottom: 24px; right: 24px;
@@ -262,24 +286,37 @@
 
   @media (max-width: 1000px) {
     .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-    .left-panel { max-height: 50vh; }
+    .left-panel { max-height: 55vh; }
   }
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- LEFT PANEL -->
   <aside class="left-panel">
     <div class="brand">
       <div class="brand-logo">RC</div>
       <div>
         <h1>RC Card Generator</h1>
-        <p>GJ Format · Exact Fit</p>
+        <p>Upload · Fill · Download</p>
       </div>
     </div>
 
     <div class="section">
-      <div class="section-title">1 · Paste Data JSON</div>
+      <div class="section-title">1 · Upload Blank PDF</div>
+      <div class="drop-zone" id="pdfDrop">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+        </svg>
+        <h3>Upload PDF</h3>
+        <p>Click or drop here</p>
+        <input type="file" id="pdfInput" accept="application/pdf" style="display:none" />
+      </div>
+      <div class="file-info" id="pdfInfo"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">2 · Paste Data JSON</div>
       <textarea id="jsonInput" placeholder='Paste your JSON here...'></textarea>
       <div class="row-btns">
         <button id="loadSampleBtn">Load Sample</button>
@@ -288,10 +325,10 @@
     </div>
 
     <div class="section">
-      <div class="section-title">2 · Generate & Preview</div>
-      <button class="btn primary" id="generateBtn">
+      <div class="section-title">3 · Generate</div>
+      <button class="btn primary" id="generateBtn" disabled>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        Generate Card Preview
+        Generate & Preview
       </button>
       <button class="btn" id="downloadBtn" disabled>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -300,24 +337,22 @@
     </div>
 
     <div class="section">
-      <div class="section-title">Analysis</div>
+      <div class="section-title">Status</div>
       <div class="stats-grid">
         <div class="stat"><span class="k">Fields Filled</span><span class="v" id="statFilled">—</span></div>
-        <div class="stat"><span class="k">QR Generated</span><span class="v" id="statQr">—</span></div>
       </div>
     </div>
 
     <div class="info-box">
-      <b>ℹ Kaise use karein:</b><br>
-      1. JSON paste kariye (fixed schema)<br>
-      2. "Generate Card Preview" dabaiye<br>
-      3. Right side me card dikhega — verify kariye<br>
-      4. "Download Filled PDF" se final file lein<br><br>
-      Text kabhi bhi card boundary se bahar nahi jayega — auto shrink/wrap apply hota hai.
+      <b>Steps:</b><br>
+      1. Blank PDF upload kariye<br>
+      2. JSON paste kariye<br>
+      3. Generate dabaiye<br>
+      4. Download se PDF lein<br><br>
+      QR code bilkul touch nahi hoga — jaise hai waise rahega.
     </div>
   </aside>
 
-  <!-- MAIN PREVIEW -->
   <main>
     <div class="toolbar">
       <span class="page-indicator">Preview</span>
@@ -329,8 +364,8 @@
     <div class="preview-pane" id="previewPane">
       <div class="empty-state" id="emptyState">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-        <h2>No card generated yet</h2>
-        <p>Paste your JSON on the left and click "Generate Card Preview" to see the RC card filled with your data.</p>
+        <h2>No PDF loaded</h2>
+        <p>Upload a blank PDF and paste JSON on the left, then click "Generate & Preview" to see the filled card here.</p>
       </div>
       <div class="canvas-wrap" id="canvasWrap" style="display:none">
         <canvas id="previewCanvas"></canvas>
@@ -350,125 +385,46 @@
 <div class="toast" id="toast"></div>
 
 <script>
-/* ============================================================
-   SETUP
-============================================================ */
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 const $ = (id) => document.getElementById(id);
 
 /* ============================================================
-   TEMPLATE CONFIGURATION — Aapke PDF se exact coordinates
+   TEMPLATE COORDINATES (aapke original PDF se)
+   QR completely skipped — usko hum touch nahi karenge.
 ============================================================ */
-
-// Blank PDF ka base64 (aap yahan apni blank PDF ka base64 paste karenge)
-// Abhi ke liye hum original PDF ki jagah placeholder use kar rahe hain
-// Aap isse replace karenge apni blank PDF se
-const BLANK_PDF_BASE64 = ''; // <-- Yahan blank PDF ka base64 paste kariye
-
-const PAGE_WIDTH = 612;
-const PAGE_HEIGHT = 792;
-
-// QR Bounding Box (aapne diya)
-const QR_BOX = { x: 300.80, y: 74.00, w: 71.50, h: 72.50 };
-
-// Har field ka coordinate map
-// align: 'left' | 'center' | 'right'
-// wrap: true matlab multi-line allowed
-// shrinkOnly: true matlab sirf font shrink karega, wrap nahi
 const COORD_MAP = {
-  stateName: {
-    x: 123.853, y: 44.560, maxW: 200, size: 6.4, align: 'left', shrinkOnly: true
-  },
-  badgeType_L: {
-    x: 246.750, y: 40.214, maxW: 7.532, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  stateCode_L: {
-    x: 259.463, y: 40.214, maxW: 7.538, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  badgeType_R: {
-    x: 304.311, y: 40.214, maxW: 7.532, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  stateCode_R: {
-    x: 317.024, y: 40.214, maxW: 7.538, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  vehicleClass: {
-    x: 388.694, y: 39.508, maxW: 92.294, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  regnNo_L: {
-    x: 108.315, y: 70.693, maxW: 38.442, size: 6.4, align: 'left', shrinkOnly: true
-  },
-  dateOfRegn: {
-    x: 152.812, y: 70.693, maxW: 35.951, size: 6.4, align: 'left', shrinkOnly: true
-  },
-  validity: {
-    x: 196.602, y: 70.693, maxW: 35.951, size: 6.4, align: 'left', shrinkOnly: true
-  },
-  ownerSerial: {
-    x: 265.467, y: 70.693, maxW: 3.561, size: 6.4, align: 'left', shrinkOnly: true
-  },
-  chassisNo: {
-    x: 108.315, y: 86.232, maxW: 69.046, size: 6.4, align: 'left', shrinkOnly: true
-  },
-  engineNo: {
-    x: 108.315, y: 103.183, maxW: 38.090, size: 6.4, align: 'left', shrinkOnly: true
-  },
-  ownerName: {
-    x: 108.315, y: 120.134, maxW: 24.194, size: 6.4, align: 'left', shrinkOnly: true
-  },
-  fatherName: {
-    x: 108.315, y: 137.086, maxW: 76.865, size: 6.4, align: 'left', shrinkOnly: true
-  },
-  fuel: {
-    x: 51.104, y: 127.904, maxW: 22.778, size: 6.4, align: 'left', shrinkOnly: true
-  },
-  emissionNorms: {
-    x: 49.692, y: 145.561, maxW: 57.295, size: 6.4, align: 'left', shrinkOnly: true
-  },
-  regnNo_R: {
-    x: 301.485, y: 64.228, maxW: 33.919, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  maker: {
-    x: 376.353, y: 64.228, maxW: 43.955, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  model: {
-    x: 376.353, y: 79.767, maxW: 87.604, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  color: {
-    x: 376.353, y: 96.012, maxW: 14.759, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  bodyType: {
-    x: 433.564, y: 96.012, maxW: 74.416, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  seating: {
-    x: 376.353, y: 110.138, maxW: 3.142, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  unladenWeight: {
-    x: 376.000, y: 125.350, maxW: 9.424, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  cubicCap: {
-    x: 376.353, y: 140.509, maxW: 9.425, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  horsePower: {
-    x: 409.550, y: 142.421, maxW: 20, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  wheelBase: {
-    x: 475.942, y: 140.509, maxW: 12.567, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  financier: {
-    x: 376.353, y: 156.754, maxW: 61.849, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  monthYearMfg: {
-    x: 301.485, y: 154.635, maxW: 20.421, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  cylinders: {
-    x: 346.689, y: 161.698, maxW: 3.142, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  regnAuthority: {
-    x: 475.000, y: 163.350, maxW: 40.816, size: 5.65, align: 'left', shrinkOnly: true
-  },
-  // Address — 3 lines, wrap + shrink
+  stateName:      { x: 123.853, y: 44.560,  maxW: 200,    size: 6.4,  shrink: true },
+  badgeType_L:    { x: 246.750, y: 40.214,  maxW: 7.532,  size: 5.65, shrink: true },
+  stateCode_L:    { x: 259.463, y: 40.214,  maxW: 7.538,  size: 5.65, shrink: true },
+  badgeType_R:    { x: 304.311, y: 40.214,  maxW: 7.532,  size: 5.65, shrink: true },
+  stateCode_R:    { x: 317.024, y: 40.214,  maxW: 7.538,  size: 5.65, shrink: true },
+  vehicleClass:   { x: 388.694, y: 39.508,  maxW: 92.294, size: 5.65, shrink: true },
+  regnNo_L:       { x: 108.315, y: 70.693,  maxW: 38.442, size: 6.4,  shrink: true },
+  dateOfRegn:     { x: 152.812, y: 70.693,  maxW: 35.951, size: 6.4,  shrink: true },
+  validity:       { x: 196.602, y: 70.693,  maxW: 35.951, size: 6.4,  shrink: true },
+  ownerSerial:    { x: 265.467, y: 70.693,  maxW: 3.561,  size: 6.4,  shrink: true },
+  chassisNo:      { x: 108.315, y: 86.232,  maxW: 69.046, size: 6.4,  shrink: true },
+  engineNo:       { x: 108.315, y: 103.183, maxW: 38.090, size: 6.4,  shrink: true },
+  ownerName:      { x: 108.315, y: 120.134, maxW: 24.194, size: 6.4,  shrink: true },
+  fatherName:     { x: 108.315, y: 137.086, maxW: 76.865, size: 6.4,  shrink: true },
+  fuel:           { x: 51.104,  y: 127.904, maxW: 22.778, size: 6.4,  shrink: true },
+  emissionNorms:  { x: 49.692,  y: 145.561, maxW: 57.295, size: 6.4,  shrink: true },
+  regnNo_R:       { x: 301.485, y: 64.228,  maxW: 33.919, size: 5.65, shrink: true },
+  maker:          { x: 376.353, y: 64.228,  maxW: 43.955, size: 5.65, shrink: true },
+  model:          { x: 376.353, y: 79.767,  maxW: 87.604, size: 5.65, shrink: true },
+  color:          { x: 376.353, y: 96.012,  maxW: 14.759, size: 5.65, shrink: true },
+  bodyType:       { x: 433.564, y: 96.012,  maxW: 74.416, size: 5.65, shrink: true },
+  seating:        { x: 376.353, y: 110.138, maxW: 3.142,  size: 5.65, shrink: true },
+  unladenWeight:  { x: 376.000, y: 125.350, maxW: 9.424,  size: 5.65, shrink: true },
+  cubicCap:       { x: 376.353, y: 140.509, maxW: 9.425,  size: 5.65, shrink: true },
+  horsePower:     { x: 409.550, y: 142.421, maxW: 20,     size: 5.65, shrink: true },
+  wheelBase:      { x: 475.942, y: 140.509, maxW: 12.567, size: 5.65, shrink: true },
+  financier:      { x: 376.353, y: 156.754, maxW: 61.849, size: 5.65, shrink: true },
+  monthYearMfg:   { x: 301.485, y: 154.635, maxW: 20.421, size: 5.65, shrink: true },
+  cylinders:      { x: 346.689, y: 161.698, maxW: 3.142,  size: 5.65, shrink: true },
+  regnAuthority:  { x: 475.000, y: 163.350, maxW: 40.816, size: 5.65, shrink: true },
   address: {
     x: 108.315,
     lines: [
@@ -478,9 +434,73 @@ const COORD_MAP = {
     ],
     maxW: 157.277,
     size: 6.4,
-    align: 'left',
     wrap: true
   }
+};
+
+// JSON key -> COORD_MAP key mapping
+const FIELD_MAP = [
+  ['stateName',     'stateName'],
+  ['badgeType',     'badgeType_L'],
+  ['stateCode',     'stateCode_L'],
+  ['badgeType',     'badgeType_R'],
+  ['stateCode',     'stateCode_R'],
+  ['vehicleClass',  'vehicleClass'],
+  ['regnNo',        'regnNo_L'],
+  ['dateOfRegn',    'dateOfRegn'],
+  ['validity',      'validity'],
+  ['ownerSerial',   'ownerSerial'],
+  ['chassisNo',     'chassisNo'],
+  ['engineNo',      'engineNo'],
+  ['ownerName',     'ownerName'],
+  ['fatherName',    'fatherName'],
+  ['fuel',          'fuel'],
+  ['emissionNorms', 'emissionNorms'],
+  ['regnNo',        'regnNo_R'],
+  ['maker',         'maker'],
+  ['model',         'model'],
+  ['color',         'color'],
+  ['bodyType',      'bodyType'],
+  ['seating',       'seating'],
+  ['unladenWeight', 'unladenWeight'],
+  ['cubicCap',      'cubicCap'],
+  ['horsePower',    'horsePower'],
+  ['wheelBase',     'wheelBase'],
+  ['financier',     'financier'],
+  ['monthYearMfg',  'monthYearMfg'],
+  ['cylinders',     'cylinders'],
+  ['regnAuthority', 'regnAuthority']
+];
+
+const SAMPLE_JSON = {
+  stateName: "Government of Gujarat",
+  badgeType: "NT",
+  stateCode: "GJ",
+  vehicleClass: "THREE WHEELER (GOODS) (3WT)",
+  regnNo: "GJ05CX1400",
+  maker: "ATUL AUTO LTD",
+  dateOfRegn: "20-Jan-2024",
+  validity: "19-Jan-2026",
+  ownerSerial: "1",
+  chassisNo: "MCG51AADDA2405431",
+  engineNo: "S3M9307924",
+  ownerName: "SACHIN",
+  fatherName: "TIVENI PRASAD PANDEY",
+  model: "ATUL SHAKTI 435 CARGO XL (D)",
+  color: "BLUE",
+  bodyType: "OPEN BODY SHEET METAL",
+  seating: "1",
+  address: "PL NO 54, SHIV SAI NAGAR, NAVAGAM DINDOLI ROAD, NANDANVAN UDHNA SURAT, Surat, Gujarat, 394210",
+  fuel: "DIESEL",
+  emissionNorms: "BHARAT STAGE VI",
+  unladenWeight: "480",
+  cubicCap: "435",
+  horsePower: "7.5 bhp",
+  wheelBase: "1960",
+  monthYearMfg: "01/2024",
+  financier: "IDFC FIRST BANK LTD.",
+  cylinders: "1",
+  regnAuthority: "SURAT, Gujarat"
 };
 
 /* ============================================================
@@ -490,13 +510,24 @@ const state = {
   pdfBytes: null,
   pdfDoc: null,
   measureFont: null,
-  generated: false,
   zoom: 1.0,
-  lastData: null
+  lastResult: null
 };
 
 /* ============================================================
-   TOAST
+   INIT MEASURE FONT
+============================================================ */
+(async function initMeasureFont() {
+  try {
+    const doc = await PDFLib.PDFDocument.create();
+    state.measureFont = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+  } catch (e) {
+    console.error('Measure font init failed:', e);
+  }
+})();
+
+/* ============================================================
+   TOAST + LOADING
 ============================================================ */
 let toastTimer = null;
 function toast(msg, type = 'ok') {
@@ -506,10 +537,6 @@ function toast(msg, type = 'ok') {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
 }
-
-/* ============================================================
-   LOADING
-============================================================ */
 function showLoading(title, sub) {
   $('loadingTitle').textContent = title || 'Processing…';
   $('loadingSub').textContent = sub || '';
@@ -518,36 +545,59 @@ function showLoading(title, sub) {
 function hideLoading() { $('loading').classList.remove('show'); }
 
 /* ============================================================
-   INIT: Load blank PDF + embed fonts
+   PDF UPLOAD
 ============================================================ */
-async function init() {
+const pdfDrop = $('pdfDrop');
+const pdfInput = $('pdfInput');
+
+pdfDrop.addEventListener('click', () => pdfInput.click());
+pdfDrop.addEventListener('dragover', (e) => {
+  e.preventDefault(); pdfDrop.classList.add('drag');
+});
+pdfDrop.addEventListener('dragleave', () => pdfDrop.classList.remove('drag'));
+pdfDrop.addEventListener('drop', (e) => {
+  e.preventDefault(); pdfDrop.classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'application/pdf') loadPdf(f);
+  else toast('PDF required', 'err');
+});
+pdfInput.addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if (f) loadPdf(f);
+});
+
+async function loadPdf(file) {
+  showLoading('Loading PDF…', file.name);
   try {
-    // Create pdf-lib doc for font measurement
-    const measureDoc = await PDFLib.PDFDocument.create();
-    state.measureFont = await measureDoc.embedFont(PDFLib.StandardFonts.Helvetica);
-
-    // Load blank PDF if base64 is provided
-    if (BLANK_PDF_BASE64) {
-      const bytes = Uint8Array.from(atob(BLANK_PDF_BASE64), c => c.charCodeAt(0));
-      state.pdfBytes = bytes;
-    } else {
-      // Agar blank PDF nahi hai to ek default white page banayenge
-      console.warn('BLANK_PDF_BASE64 is empty — using fallback blank page');
-      const doc = await PDFLib.PDFDocument.create();
-      const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-      const bytes = await doc.save();
-      state.pdfBytes = bytes;
-    }
-
-    // Load into pdf.js for preview
+    state.pdfBytes = await file.arrayBuffer();
     state.pdfDoc = await pdfjsLib.getDocument({ data: state.pdfBytes.slice(0) }).promise;
-    
-    console.log('✅ Ready');
+
+    $('pdfInfo').textContent = `📄 ${file.name} · ${state.pdfDoc.numPages} page${state.pdfDoc.numPages > 1 ? 's' : ''}`;
+    $('pdfInfo').classList.add('show');
+    $('generateBtn').disabled = false;
+    $('zoomIn').disabled = false;
+    $('zoomOut').disabled = false;
+
+    await renderPreview(state.pdfBytes);
+    hideLoading();
+    toast('PDF loaded', 'ok');
   } catch (err) {
-    console.error('Init failed:', err);
-    toast('Init failed: ' + err.message, 'err');
+    console.error(err);
+    hideLoading();
+    toast('PDF load failed: ' + err.message, 'err');
   }
 }
+
+/* ============================================================
+   JSON SAMPLES
+============================================================ */
+$('loadSampleBtn').addEventListener('click', () => {
+  $('jsonInput').value = JSON.stringify(SAMPLE_JSON, null, 2);
+  toast('Sample JSON loaded', 'ok');
+});
+$('clearBtn').addEventListener('click', () => {
+  $('jsonInput').value = '';
+});
 
 /* ============================================================
    MEASURE TEXT WIDTH
@@ -564,193 +614,72 @@ function measureWidth(text, size) {
 /* ============================================================
    FIT LOGIC
 ============================================================ */
-// Single-line: shrink to fit
 function fitSingleLine(text, maxW, size) {
   if (!text) return { text: '', size };
-  const width = measureWidth(text, size);
-  if (width <= maxW) return { text, size };
-  const scale = maxW / width;
-  const newSize = Math.max(size * scale, size * 0.4);
+  const w = measureWidth(text, size);
+  if (w <= maxW) return { text, size };
+  const newSize = Math.max(size * (maxW / w), size * 0.4);
   return { text, size: newSize };
-}
-
-// Multi-line wrap + shrink for address
-function fitMultiLine(text, maxW, size, maxLines) {
-  const originalSize = size;
-  let currentSize = size;
-
-  while (currentSize >= originalSize * 0.4) {
-    const lines = wrapToLines(text, maxW, currentSize);
-    if (lines.length <= maxLines) {
-      return { lines, size: currentSize };
-    }
-    currentSize = currentSize * 0.9;
-  }
-
-  // Fallback: shrink till it fits
-  currentSize = originalSize * 0.4;
-  const lines = wrapToLines(text, maxW, currentSize);
-  return { lines: lines.slice(0, maxLines), size: currentSize };
 }
 
 function wrapToLines(text, maxW, size) {
   const words = String(text).split(/\s+/).filter(Boolean);
   if (!words.length) return [''];
   const lines = [];
-  let current = '';
+  let cur = '';
   for (const w of words) {
-    const test = current ? current + ' ' + w : w;
-    if (measureWidth(test, size) <= maxW) {
-      current = test;
-    } else {
-      if (current) lines.push(current);
-      current = w;
+    const test = cur ? cur + ' ' + w : w;
+    if (measureWidth(test, size) <= maxW) cur = test;
+    else {
+      if (cur) lines.push(cur);
+      cur = w;
     }
   }
-  if (current) lines.push(current);
+  if (cur) lines.push(cur);
   return lines;
 }
 
-/* ============================================================
-   GENERATE PDF
-============================================================ */
-async function generatePdf(data) {
-  const doc = await PDFLib.PDFDocument.load(state.pdfBytes);
-  const page = doc.getPages()[0];
-  const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
-  const pageH = page.getHeight();
-
-  let filledCount = 0;
-
-  // Helper to draw text
-  const drawText = (text, x, y, size, maxW = null) => {
-    if (!text || String(text).trim() === '') return false;
-    const str = String(text);
-    let finalSize = size;
-    if (maxW !== null) {
-      const w = measureWidth(str, size);
-      if (w > maxW) {
-        finalSize = Math.max(size * (maxW / w), size * 0.4);
-      }
-    }
-    try {
-      page.drawText(str, {
-        x,
-        y: pageH - y - font.ascentAtSize(finalSize) * 0.85,
-        size: finalSize,
-        font,
-        color: PDFLib.rgb(0, 0, 0)
-      });
-      filledCount++;
-      return true;
-    } catch (e) {
-      console.warn('Draw failed:', str, e);
-      return false;
-    }
-  };
-
-  // Draw all single-line fields
-  const singleFields = [
-    ['stateName', 'stateName'],
-    ['badgeType_L', 'badgeType'],
-    ['stateCode_L', 'stateCode'],
-    ['badgeType_R', 'badgeType'],
-    ['stateCode_R', 'stateCode'],
-    ['vehicleClass', 'vehicleClass'],
-    ['regnNo_L', 'regnNo'],
-    ['dateOfRegn', 'dateOfRegn'],
-    ['validity', 'validity'],
-    ['ownerSerial', 'ownerSerial'],
-    ['chassisNo', 'chassisNo'],
-    ['engineNo', 'engineNo'],
-    ['ownerName', 'ownerName'],
-    ['fatherName', 'fatherName'],
-    ['fuel', 'fuel'],
-    ['emissionNorms', 'emissionNorms'],
-    ['regnNo_R', 'regnNo'],
-    ['maker', 'maker'],
-    ['model', 'model'],
-    ['color', 'color'],
-    ['bodyType', 'bodyType'],
-    ['seating', 'seating'],
-    ['unladenWeight', 'unladenWeight'],
-    ['cubicCap', 'cubicCap'],
-    ['horsePower', 'horsePower'],
-    ['wheelBase', 'wheelBase'],
-    ['financier', 'financier'],
-    ['monthYearMfg', 'monthYearMfg'],
-    ['cylinders', 'cylinders'],
-    ['regnAuthority', 'regnAuthority']
-  ];
-
-  for (const [coordKey, dataKey] of singleFields) {
-    const c = COORD_MAP[coordKey];
-    const val = data[dataKey];
-    if (c && val) {
-      const { size: finalSize } = fitSingleLine(String(val), c.maxW, c.size);
-      drawText(String(val), c.x, c.y, c.size, c.maxW);
-    }
+function fitMultiLine(text, maxW, size, maxLines) {
+  const orig = size;
+  let s = size;
+  while (s >= orig * 0.4) {
+    const lines = wrapToLines(text, maxW, s);
+    if (lines.length <= maxLines) return { lines, size: s };
+    s *= 0.9;
   }
-
-  // Address — multi-line
-  const addrCoord = COORD_MAP.address;
-  if (data.address && addrCoord) {
-    const { lines, size } = fitMultiLine(
-      data.address, addrCoord.maxW, addrCoord.size, addrCoord.lines.length
-    );
-    lines.forEach((line, i) => {
-      if (i < addrCoord.lines.length && line) {
-        drawText(line, addrCoord.x, addrCoord.lines[i].y, size, null);
-      }
-    });
-  }
-
-  // QR Code
-  const qrText = [
-    data.regnNo || '',
-    data.chassisNo || '',
-    data.engineNo || '',
-    data.ownerName || ''
-  ].join('|');
-
-  if (qrText.trim().replace(/\|/g, '')) {
-    const qrDataUrl = await generateQrDataUrl(qrText);
-    if (qrDataUrl) {
-      const pngBytes = dataUrlToUint8(qrDataUrl);
-      const qrImage = await doc.embedPng(pngBytes);
-      // pdf-lib uses bottom-left origin
-      page.drawImage(qrImage, {
-        x: QR_BOX.x,
-        y: pageH - QR_BOX.y - QR_BOX.h,
-        width: QR_BOX.w,
-        height: QR_BOX.h
-      });
-    }
-  }
-
-  return { bytes: await doc.save(), filledCount, qrText };
+  const lines = wrapToLines(text, maxW, orig * 0.4);
+  return { lines: lines.slice(0, maxLines), size: orig * 0.4 };
 }
 
 /* ============================================================
-   QR GENERATION
+   GENERATE FILLED PDF
 ============================================================ */
-function generateQrDataUrl(text) {
-  return new Promise((resolve) => {
-    QRCode.toDataURL(text, {
-      errorCorrectionLevel: 'M',
-      margin: 0,
-      width: 512,
-      color: { dark: '#000000', light: '#FFFFFF' }
-    }, (err, url) => {
-      if (err) { console.error('QR failed:', err); resolve(null); }
-      else resolve(url);
-    });
-  });
-}
+async function generateFilledPdf() {
+  const raw = $('jsonInput').value.trim();
+  if (!raw) { toast('JSON paste kariye', 'err'); return; }
+  if (!state.pdfBytes) { toast('Pehle PDF upload kariye', 'err'); return; }
 
-function dataUrlToUint8(dataUrl) {
-  const base64 = dataUrl.split(',')[1];
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) binary[i] = binary.charCodeAt(i);
-  return bytes
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch (e) {
+    toast('JSON parse error: ' + e.message, 'err');
+    return;
+  }
+
+  showLoading('Generating PDF…', 'Drawing text at exact coordinates');
+  try {
+    const doc = await PDFLib.PDFDocument.load(state.pdfBytes);
+    const page = doc.getPages()[0];
+    const font = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+    const pageH = page.getHeight();
+
+    let filled = 0;
+
+    const drawText = (text, x, y, size, maxW) => {
+      if (!text || String(text).trim() === '') return;
+      const str = String(text);
+      let finalSize = size;
+      if (maxW !== null && maxW > 0) {
+        const w = measureWidth(str, size);
+        if (w > maxW) finalSize =
