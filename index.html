@@ -72,7 +72,6 @@
     letter-spacing: 0.1em; text-transform: uppercase;
   }
 
-  /* ====== FIXED DROP ZONE ====== */
   .drop-zone {
     position: relative;
     border: 2px dashed rgba(255, 255, 255, 0.12);
@@ -92,7 +91,6 @@
   .drop-zone h3 { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
   .drop-zone p { font-size: 10.5px; color: var(--muted); }
 
-  /* Hidden file input - use opacity instead of display:none */
   #pdfInput {
     position: absolute;
     inset: 0;
@@ -100,7 +98,6 @@
     height: 100%;
     opacity: 0;
     cursor: pointer;
-    /* Important: not display:none, so click works everywhere */
   }
 
   .file-info {
@@ -317,8 +314,7 @@
     <div class="section">
       <div class="section-title">1 · Upload Blank PDF</div>
       <div class="drop-zone" id="pdfDrop">
-        <!-- File input is INSIDE the drop zone, transparent overlay -->
-        <input type="file" id="pdfInput" accept="application/pdf,application/x-pdf" />
+        <input type="file" id="pdfInput" accept="application/pdf,application/x-pdf,.pdf" />
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
           <polyline points="14 2 14 8 20 8"/>
@@ -398,29 +394,33 @@
 
 <script>
 /* ============================================================
-   GLOBAL ERROR GUARD
+   1. GLOBAL ERROR GUARD
 ============================================================ */
-window.addEventListener('error', (e) => {
-  console.error('Global error:', e.error || e.message);
+window.addEventListener('error', function(e) {
+  console.error('❌ Global error:', e.error || e.message);
 });
-window.addEventListener('unhandledrejection', (e) => {
-  console.error('Unhandled promise rejection:', e.reason);
+window.addEventListener('unhandledrejection', function(e) {
+  console.error('❌ Unhandled rejection:', e.reason);
 });
 
 /* ============================================================
-   PDF.js WORKER
+   2. CHECK LIBRARIES
 ============================================================ */
-try {
+if (typeof pdfjsLib === 'undefined') {
+  alert('pdf.js library load nahi hui. Internet check kariye.');
+}
+if (typeof PDFLib === 'undefined') {
+  alert('pdf-lib library load nahi hui. Internet check kariye.');
+}
+if (typeof pdfjsLib !== 'undefined') {
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-} catch (err) {
-  console.error('pdfjsLib not loaded:', err);
 }
 
-const $ = (id) => document.getElementById(id);
+const $ = function(id) { return document.getElementById(id); };
 
 /* ============================================================
-   COORDINATE MAP — QR untouched
+   3. COORDINATE MAP (QR untouched)
 ============================================================ */
 const COORD_MAP = {
   stateName:      { x: 123.853, y: 44.560,  maxW: 200,    size: 6.4 },
@@ -526,9 +526,9 @@ const SAMPLE_JSON = {
 };
 
 /* ============================================================
-   STATE
+   4. STATE
 ============================================================ */
-const state = {
+var state = {
   pdfBytes: null,
   pdfDoc: null,
   measureFont: null,
@@ -537,28 +537,31 @@ const state = {
 };
 
 /* ============================================================
-   INIT
+   5. INIT MEASURE FONT
 ============================================================ */
-(async function initMeasureFont() {
-  try {
-    const doc = await PDFLib.PDFDocument.create();
-    state.measureFont = await doc.embedFont(PDFLib.StandardFonts.Helvetica);
+(function initMeasureFont() {
+  if (typeof PDFLib === 'undefined') return;
+  PDFLib.PDFDocument.create().then(function(doc) {
+    return doc.embedFont(PDFLib.StandardFonts.Helvetica);
+  }).then(function(font) {
+    state.measureFont = font;
     console.log('✅ Measure font ready');
-  } catch (e) {
+  }).catch(function(e) {
     console.error('Measure font init failed:', e);
-  }
+  });
 })();
 
 /* ============================================================
-   TOAST + LOADING
+   6. TOAST + LOADING
 ============================================================ */
-let toastTimer = null;
-function toast(msg, type = 'ok') {
-  const t = $('toast');
+var toastTimer = null;
+function toast(msg, type) {
+  type = type || 'ok';
+  var t = $('toast');
   t.textContent = msg;
   t.className = 'toast show ' + type;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+  toastTimer = setTimeout(function() { t.classList.remove('show'); }, 3200);
 }
 function showLoading(title, sub) {
   $('loadingTitle').textContent = title || 'Processing…';
@@ -568,118 +571,60 @@ function showLoading(title, sub) {
 function hideLoading() { $('loading').classList.remove('show'); }
 
 /* ============================================================
-   PDF UPLOAD — file input is INSIDE dropzone with opacity:0
-   so clicking ANYWHERE on dropzone triggers the file picker natively.
+   7. MEASURE + FIT LOGIC
 ============================================================ */
-const pdfDrop = $('pdfDrop');
-const pdfInput = $('pdfInput');
-
-console.log('✅ Upload elements found:', !!pdfDrop, !!pdfInput);
-
-// The input itself is covering the dropzone with opacity:0
-// Clicking it natively opens the file picker. No JS needed for click.
-// But we also handle change and drag events below.
-
-pdfInput.addEventListener('change', (e) => {
-  console.log('📁 File input changed');
-  const f = e.target.files && e.target.files[0];
-  if (f) {
-    console.log('Selected file:', f.name, f.type, f.size);
-    loadPdf(f);
-  } else {
-    console.log('No file selected');
-  }
-});
-
-// Drag & drop on drop zone
-pdfDrop.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  pdfDrop.classList.add('drag');
-});
-pdfDrop.addEventListener('dragleave', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  pdfDrop.classList.remove('drag');
-});
-pdfDrop.addEventListener('drop', (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  pdfDrop.classList.remove('drag');
-  const f = e.dataTransfer.files && e.dataTransfer.files[0];
-  if (f && (f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'))) {
-    loadPdf(f);
-  } else {
-    toast('PDF file required', 'err');
-  }
-});
-
-/* ============================================================
-   LOAD PDF
-============================================================ */
-async function loadPdf(file) {
-  showLoading('Loading PDF…', file.name);
+function measureWidth(text, size) {
+  if (!state.measureFont) return String(text).length * size * 0.5;
   try {
-    state.pdfBytes = await file.arrayBuffer();
-    state.filledBytes = null;
-    state.pdfDoc = await pdfjsLib.getDocument({ data: state.pdfBytes.slice(0) }).promise;
-
-    $('pdfInfo').textContent = `📄 ${file.name} · ${state.pdfDoc.numPages} page${state.pdfDoc.numPages > 1 ? 's' : ''}`;
-    $('pdfInfo').classList.add('show');
-    $('generateBtn').disabled = false;
-    $('downloadBtn').disabled = true;
-    $('zoomIn').disabled = false;
-    $('zoomOut').disabled = false;
-
-    await renderPdfToCanvas(state.pdfBytes);
-    hideLoading();
-    toast('PDF loaded successfully', 'ok');
-  } catch (err) {
-    console.error('PDF load error:', err);
-    hideLoading();
-    toast('PDF load failed: ' + err.message, 'err');
+    return state.measureFont.widthOfTextAtSize(String(text), size);
+  } catch (e) {
+    return String(text).length * size * 0.5;
   }
+}
+function fitSingleLine(text, maxW, size) {
+  var w = measureWidth(text, size);
+  if (w <= maxW) return { text: text, size: size };
+  return { text: text, size: Math.max(size * (maxW / w), size * 0.4) };
+}
+function wrapToLines(text, maxW, size) {
+  var words = String(text).split(/\s+/).filter(Boolean);
+  if (!words.length) return [''];
+  var lines = [];
+  var cur = '';
+  for (var i = 0; i < words.length; i++) {
+    var test = cur ? cur + ' ' + words[i] : words[i];
+    if (measureWidth(test, size) <= maxW) {
+      cur = test;
+    } else {
+      if (cur) lines.push(cur);
+      cur = words[i];
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+function fitMultiLine(text, maxW, size, maxLines) {
+  var orig = size;
+  var s = size;
+  while (s >= orig * 0.4) {
+    var lines = wrapToLines(text, maxW, s);
+    if (lines.length <= maxLines) return { lines: lines, size: s };
+    s *= 0.9;
+  }
+  var fallback = wrapToLines(text, maxW, orig * 0.4);
+  return { lines: fallback.slice(0, maxLines), size: orig * 0.4 };
 }
 
 /* ============================================================
-   RENDER PDF TO CANVAS
+   8. RENDER PDF TO CANVAS
 ============================================================ */
-const previewCanvas = $('previewCanvas');
-const canvasWrap = $('canvasWrap');
-const emptyState = $('emptyState');
-const previewPane = $('previewPane');
+var previewCanvas = $('previewCanvas');
+var canvasWrap = $('canvasWrap');
+var emptyState = $('emptyState');
+var previewPane = $('previewPane');
 
 async function renderPdfToCanvas(bytes) {
-  const doc = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
-  const page = await doc.getPage(1);
-  const baseViewport = page.getViewport({ scale: 1 });
-  const paneWidth = Math.max(previewPane.clientWidth - 40, 400);
-  const fitScale = Math.min(2.5, paneWidth / baseViewport.width);
-  const finalScale = fitScale * state.zoom;
-  const viewport = page.getViewport({ scale: finalScale });
-
-  previewCanvas.width = Math.floor(viewport.width);
-  previewCanvas.height = Math.floor(viewport.height);
-  const ctx = previewCanvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
-
-  await page.render({ canvasContext: ctx, viewport }).promise;
-
-  canvasWrap.style.display = 'block';
-  emptyState.style.display = 'none';
-  $('zoomLabel').textContent = Math.round(state.zoom * 100) + '%';
-}
-
-/* ============================================================
-   ZOOM
-============================================================ */
-$('zoomIn').addEventListener('click', async () => {
-  state.zoom = Math.min(state.zoom * 1.25, 3);
-  const bytes = state.filledBytes || state.pdfBytes;
-  if (bytes) await renderPdfToCanvas(bytes);
-});
-$('zoomOut').addEventListener('click', async () => {
-  state.zoom = Math.max(state.zoom / 1.25, 0.4);
-  const bytes = state.filledBytes || state.pdfBytes;
-  if (bytes) await renderPdf
+  console.log('🎨 renderPdfToCanvas called');
+  var doc = await pdfjsLib.getDocument({ data: bytes.slice(0) }).promise;
+  var page = await doc.getPage(1);
+  var baseViewport = page.getViewport({ scale: 
